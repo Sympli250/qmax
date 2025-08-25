@@ -14,6 +14,7 @@ class QuizEngine {
         this.index = 0;
         this.participantId = null;
         this.startTime = null;
+        this.timerInterval = null;
         this.init();
     }
 
@@ -64,6 +65,7 @@ class QuizEngine {
             <div class="panel">
                 <div class="question-header">
                     <div class="badge">Question ${this.index+1}/${this.questions.length}</div>
+                    <div class="badge info" id="quiz-timer">0:00</div>
                     <div class="badge green">${this.escape(this.participantName)}</div>
                 </div>
                 <h2 class="question-text">${this.escape(q.text)}</h2>
@@ -77,6 +79,8 @@ class QuizEngine {
                 <div class="progress"><div class="fill" style="width:${progress}%"></div></div>
             </div>
         `;
+
+        this.startTimer();
 
         c.querySelectorAll('.answer-btn').forEach(btn=>{
             btn.addEventListener('click', async () => {
@@ -119,6 +123,7 @@ class QuizEngine {
             const pct = s && s.total_questions > 0 ? Math.round( (s.correct_answers*100) / s.total_questions ) : 0;
             const c = document.getElementById('quiz-container');
             const dur = this.duration(this.startTime, new Date());
+            clearInterval(this.timerInterval);
 
             const reviewHtml = wrong.length ? `
                 <h3>Révision des erreurs</h3>
@@ -142,6 +147,7 @@ class QuizEngine {
                             <div class="big green">${pct}%</div>
                             <div>Temps: ${dur}</div>
                         </div>
+                        <p class="success-score">Score de réussite : ${pct}%</p>
                     </div>
                     ${reviewHtml}
                     <p class="center"><a class="btn-primary" href="${this.baseUrl}">Retour à l'accueil</a></p>
@@ -150,6 +156,15 @@ class QuizEngine {
         } catch (e) {
             this.error('Erreur lors du calcul du score');
         }
+    }
+
+    startTimer(){
+        const t = document.getElementById('quiz-timer');
+        if(!t) return;
+        if (this.timerInterval) clearInterval(this.timerInterval);
+        const update = () => { t.textContent = this.duration(this.startTime, new Date()); };
+        update();
+        this.timerInterval = setInterval(update, 1000);
     }
 
     duration(a,b){
