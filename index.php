@@ -13,6 +13,7 @@ define('APP_VERSION', '0.3');
 
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/config.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -67,6 +68,14 @@ switch ($page) {
 
     case 'admin-users':
         showUserManagement();
+        break;
+
+    case 'admin-config':
+        showAppConfig();
+        break;
+
+    case 'admin-permissions':
+        showPermissionManagement();
         break;
 
     case 'create-quiz':
@@ -380,6 +389,142 @@ function showAdminLogin(): void {
 </html>
 <?php }
 
+function showAppConfig(): void {
+    if (!isLoggedIn() || !isSuperAdmin()) {
+        header('Location: ' . getBaseUrl() . '?page=admin');
+        exit;
+    }
+    $msg = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $key = trim($_POST['key'] ?? '');
+        $value = trim($_POST['value'] ?? '');
+        if ($key !== '') {
+            $msg = setConfig($key, $value) ? 'Configuration enregistrée' : 'Erreur';
+        }
+    }
+    $configs = getAllConfig();
+    ?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuration - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Configuration de l'application</h1>
+    <p><a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-dashboard">Retour</a></p>
+    <?php if ($msg): ?><div class="panel center"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+    <h2>Ajouter / Modifier</h2>
+    <form method="post" class="form">
+        <div class="form-group"><label>Clé</label><input type="text" name="key" required></div>
+        <div class="form-group"><label>Valeur</label><input type="text" name="value"></div>
+        <button type="submit" class="btn-success">Enregistrer</button>
+    </form>
+    <h2>Configuration existante</h2>
+    <div class="table-wrap">
+        <table class="users-table">
+            <thead><tr><th>Clé</th><th>Valeur</th></tr></thead>
+            <tbody>
+            <?php foreach ($configs as $k => $v): ?>
+                <tr><td><?= htmlspecialchars($k) ?></td><td><?= htmlspecialchars($v) ?></td></tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
+<?php }
+
+function showPermissionManagement(): void {
+    if (!isLoggedIn() || !isSuperAdmin()) {
+        header('Location: ' . getBaseUrl() . '?page=admin');
+        exit;
+    }
+    $msg = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'create_permission') {
+            $name = trim($_POST['name'] ?? '');
+            if ($name !== '') {
+                $msg = createPermission($name) ? 'Permission créée' : 'Erreur création';
+            }
+        } elseif ($action === 'assign_permission') {
+            $uid = (int)($_POST['user_id'] ?? 0);
+            $pid = (int)($_POST['permission_id'] ?? 0);
+            if ($uid > 0 && $pid > 0) {
+                $msg = assignPermissionToUser($uid, $pid) ? 'Permission assignée' : 'Erreur assignation';
+            }
+        } elseif ($action === 'revoke_permission') {
+            $uid = (int)($_POST['user_id'] ?? 0);
+            $pid = (int)($_POST['permission_id'] ?? 0);
+            if ($uid > 0 && $pid > 0) {
+                $msg = revokePermissionFromUser($uid, $pid) ? 'Permission retirée' : 'Erreur retrait';
+            }
+        }
+    }
+    $users = getAllUsers();
+    $permissions = getAllPermissions();
+    $userPerms = [];
+    foreach ($users as $u) {
+        $userPerms[$u['id']] = getUserPermissions((int)$u['id']);
+    }
+    ?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Permissions - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Gestion des permissions</h1>
+    <p><a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-dashboard">Retour</a></p>
+    <?php if ($msg): ?><div class="panel center"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+    <h2>Créer une permission</h2>
+    <form method="post" class="form">
+        <input type="hidden" name="action" value="create_permission">
+        <div class="form-group"><label>Nom</label><input type="text" name="name" required></div>
+        <button type="submit" class="btn-success">Créer</button>
+    </form>
+    <h2>Permissions par utilisateur</h2>
+    <?php foreach ($users as $u): ?>
+        <div class="panel">
+            <h3><?= htmlspecialchars($u['username']) ?></h3>
+            <ul>
+            <?php foreach ($userPerms[$u['id']] as $p): ?>
+                <li><?= htmlspecialchars($p['name']) ?>
+                    <form method="post" style="display:inline">
+                        <input type="hidden" name="action" value="revoke_permission">
+                        <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                        <input type="hidden" name="permission_id" value="<?= (int)$p['id'] ?>">
+                        <button type="submit" class="btn-danger">Retirer</button>
+                    </form>
+                </li>
+            <?php endforeach; ?>
+            </ul>
+            <form method="post" class="form-inline">
+                <input type="hidden" name="action" value="assign_permission">
+                <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                <select name="permission_id">
+                    <?php foreach ($permissions as $perm): ?>
+                        <option value="<?= (int)$perm['id'] ?>"><?= htmlspecialchars($perm['name']) ?></option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="btn-primary">Ajouter</button>
+            </form>
+        </div>
+    <?php endforeach; ?>
+</div>
+</body>
+</html>
+<?php }
+
 function showAdminDashboard(): void {
     if (!isLoggedIn()) {
         header('Location: ' . getBaseUrl() . '?page=admin');
@@ -436,6 +581,8 @@ function showAdminDashboard(): void {
         <a class="btn-success" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=create-quiz">Créer un nouveau quiz</a>
         <?php if (isSuperAdmin()): ?>
             <a class="btn-info" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-users">Gestion utilisateurs</a>
+            <a class="btn-warning" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-config">Configuration</a>
+            <a class="btn-info" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-permissions">Permissions</a>
         <?php endif; ?>
         <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=logout">Se déconnecter</a>
     </p>
