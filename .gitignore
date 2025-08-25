@@ -1,0 +1,18 @@
+# SQLite database files (contain user data)
+quiz_app.db
+*.db
+
+# Temporary files
+/tmp/
+*.tmp
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db

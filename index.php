@@ -251,6 +251,16 @@ function handleAjaxRequest(): void {
             echo json_encode(['success' => (bool)$ok]);
             break;
         }
+        case 'fork_quiz': {
+            $quiz_id = (int)($_POST['quiz_id'] ?? 0);
+            $result = forkQuiz($quiz_id);
+            if ($result) {
+                echo json_encode(['success' => true, 'quiz' => $result]);
+            } else {
+                echo json_encode(['success' => false, 'message' => 'Échec de la duplication']);
+            }
+            break;
+        }
         default:
             echo json_encode(['success' => false, 'message' => 'Action inconnue']);
     }
@@ -285,6 +295,105 @@ function changeQuizStatus(int $quiz_id, string $new_status): bool {
     } catch (Throwable $e) {
         error_log('changeQuizStatus: ' . $e->getMessage());
         return false;
+    }
+}
+
+function forkQuiz(int $quiz_id): ?array {
+    global $pdo;
+    if ($quiz_id <= 0) return null;
+    if (session_status() === PHP_SESSION_NONE) session_start();
+    $user_id = $_SESSION['user_id'] ?? 0;
+    if ($user_id <= 0) return null;
+
+    try {
+        $pdo->beginTransaction();
+
+        // Get original quiz data
+        $stmt = $pdo->prepare("SELECT * FROM quizzes WHERE id = ? AND user_id = ?");
+        $stmt->execute([$quiz_id, $user_id]);
+        $original_quiz = $stmt->fetch();
+        
+        if (!$original_quiz) {
+            $pdo->rollBack();
+            return null;
+        }
+
+        // Generate new code and title
+        $new_code = generateQuizCode();
+        $new_title = $original_quiz['title'] . ' (Copie)';
+
+        // Create new quiz
+        $stmt = $pdo->prepare("
+            INSERT INTO quizzes (title, description, code, user_id, status, created_at, updated_at)
+            VALUES (?, ?, ?, ?, 'draft', datetime('now'), datetime('now'))
+        ");
+        $stmt->execute([$new_title, $original_quiz['description'], $new_code, $user_id]);
+        $new_quiz_id = $pdo->lastInsertId();
+
+        // Copy quiz options
+        $stmt = $pdo->prepare("SELECT * FROM quiz_options WHERE quiz_id = ?");
+        $stmt->execute([$quiz_id]);
+        $options = $stmt->fetch();
+        
+        if ($options) {
+            $stmt = $pdo->prepare("
+                INSERT INTO quiz_options (quiz_id, randomize_questions, randomize_answers, created_at)
+                VALUES (?, ?, ?, datetime('now'))
+            ");
+            $stmt->execute([
+                $new_quiz_id,
+                $options['randomize_questions'],
+                $options['randomize_answers']
+            ]);
+        }
+
+        // Copy questions
+        $stmt = $pdo->prepare("SELECT * FROM questions WHERE quiz_id = ? ORDER BY order_index");
+        $stmt->execute([$quiz_id]);
+        $questions = $stmt->fetchAll();
+
+        foreach ($questions as $question) {
+            $stmt = $pdo->prepare("
+                INSERT INTO questions (quiz_id, text, comment, order_index, created_at)
+                VALUES (?, ?, ?, ?, datetime('now'))
+            ");
+            $stmt->execute([
+                $new_quiz_id,
+                $question['text'],
+                $question['comment'],
+                $question['order_index']
+            ]);
+            $new_question_id = $pdo->lastInsertId();
+
+            // Copy answers for this question
+            $stmt = $pdo->prepare("SELECT * FROM answers WHERE question_id = ?");
+            $stmt->execute([$question['id']]);
+            $answers = $stmt->fetchAll();
+
+            foreach ($answers as $answer) {
+                $stmt = $pdo->prepare("
+                    INSERT INTO answers (question_id, text, is_correct, created_at)
+                    VALUES (?, ?, ?, datetime('now'))
+                ");
+                $stmt->execute([
+                    $new_question_id,
+                    $answer['text'],
+                    $answer['is_correct']
+                ]);
+            }
+        }
+
+        $pdo->commit();
+        
+        return [
+            'id' => $new_quiz_id,
+            'code' => $new_code,
+            'title' => $new_title
+        ];
+    } catch (Throwable $e) {
+        $pdo->rollBack();
+        error_log('forkQuiz: ' . $e->getMessage());
+        return null;
     }
 }
 
@@ -654,6 +763,7 @@ function showAdminDashboard(): void {
                             <a class="btn-primary small" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=quiz&code=<?= urlencode($qz['code']) ?>">Voir</a>
                             <a class="btn-warning small" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=edit-quiz&id=<?= (int)$qz['id'] ?>">Modifier</a>
                             <a class="btn-info small" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=quiz-results&code=<?= urlencode($qz['code']) ?>">Résultats</a>
+                            <button class="btn-secondary small" onclick="forkQuiz(<?= (int)$qz['id'] ?>, this)">Dupliquer</button>
                             <button class="btn-danger small" onclick="deleteQuiz(<?= (int)$qz['id'] ?>, this)">Supprimer</button>
                         </td>
                     </tr>
@@ -688,6 +798,30 @@ function deleteQuiz(id, btn){
     }).then(r=>r.json()).then(j=>{
         if(j.success){ location.reload(); } else { alert('Suppression impossible'); btn.disabled=false; }
     }).catch(()=>{ alert('Erreur réseau'); btn.disabled=false; });
+}
+function forkQuiz(id, btn){
+    if(!confirm('Dupliquer ce quiz ? Une copie sera créée avec un nouveau code.')) return;
+    btn.disabled = true;
+    btn.textContent = 'Duplication...';
+    fetch(baseUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        credentials:'same-origin',
+        body: 'ajax_action=fork_quiz&quiz_id='+encodeURIComponent(id)
+    }).then(r=>r.json()).then(j=>{
+        if(j.success){ 
+            alert('Quiz dupliqué avec succès ! Nouveau code: ' + j.quiz.code);
+            location.reload(); 
+        } else { 
+            alert('Duplication impossible: ' + (j.message || 'Erreur inconnue')); 
+            btn.disabled=false; 
+            btn.textContent = 'Dupliquer';
+        }
+    }).catch(()=>{ 
+        alert('Erreur réseau'); 
+        btn.disabled=false; 
+        btn.textContent = 'Dupliquer';
+    });
 }
 function exportQuizzes(all){
     const format = document.getElementById('export-format').value;
