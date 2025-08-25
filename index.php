@@ -160,7 +160,8 @@ function handleApiRequest(): void {
                 }
 
                 $ok = saveParticipantProgress($participant_id, $question_id, $answer_id);
-                echo json_encode(['success' => (bool)$ok]);
+                if (!$ok) throw new Exception('Données invalides');
+                echo json_encode(['success' => true]);
                 break;
             }
 
@@ -954,6 +955,19 @@ function registerParticipant(string $quiz_code, string $nickname) {
 function saveParticipantProgress(int $participant_id, int $question_id, int $answer_id): bool {
     global $pdo;
     try {
+        // Vérifier que la question appartient au même quiz que le participant
+        // et que la réponse est liée à cette question
+        $check = $pdo->prepare("
+            SELECT COUNT(*) FROM participants p
+            JOIN questions q ON q.quiz_id = p.quiz_id
+            JOIN answers a ON a.question_id = q.id
+            WHERE p.id = ? AND q.id = ? AND a.id = ?
+        ");
+        $check->execute([$participant_id, $question_id, $answer_id]);
+        if ((int)$check->fetchColumn() === 0) {
+            return false;
+        }
+
         $stmt = $pdo->prepare("
             INSERT OR REPLACE INTO participant_progress (participant_id, question_id, chosen_answer_id, answered_at)
             VALUES (?, ?, ?, datetime('now'))
