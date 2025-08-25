@@ -189,6 +189,15 @@ function handleApiRequest(): void {
                 break;
             }
 
+            case 'participant-wrong-answers': {
+                $pid = (int)($_GET['participant_id'] ?? 0);
+                if ($pid <= 0) throw new Exception('ID participant manquant');
+
+                $rows = getParticipantWrongAnswers($pid);
+                echo json_encode($rows, JSON_UNESCAPED_UNICODE);
+                break;
+            }
+
             default:
                 http_response_code(404);
                 echo json_encode(['error' => 'Endpoint non trouvé']);
@@ -1342,6 +1351,30 @@ function getParticipantScore(int $participant_id) {
     } catch (Throwable $e) {
         error_log('getParticipantScore: ' . $e->getMessage());
         return false;
+    }
+}
+
+function getParticipantWrongAnswers(int $participant_id): array {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                q.text AS question,
+                ca.text AS your_answer,
+                a.text AS correct_answer,
+                q.comment
+            FROM participant_progress pp
+            JOIN questions q ON q.id = pp.question_id
+            JOIN answers ca ON ca.id = pp.chosen_answer_id
+            JOIN answers a ON a.question_id = q.id AND a.is_correct = 1
+            WHERE pp.participant_id = ? AND ca.is_correct = 0
+            ORDER BY q.order_index
+        ");
+        $stmt->execute([$participant_id]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        error_log('getParticipantWrongAnswers: ' . $e->getMessage());
+        return [];
     }
 }
 
