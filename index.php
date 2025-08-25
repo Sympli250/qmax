@@ -591,14 +591,20 @@ function showAdminDashboard(): void {
     <div class="panel center">
         <p>
             <a class="btn-info" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=import-quiz">Importer un quiz</a>
-            <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=export-quizzes&format=json">Exporter (JSON)</a>
-            <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=export-quizzes&format=csv">Exporter (CSV)</a>
-            <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=export-quizzes&format=excel">Exporter (Excel)</a>
         </p>
-        <p>
-            <a href="templates/quiz-template.json" download>Template JSON</a> |
-            <a href="templates/quiz-template.csv" download>Template CSV</a> |
-            <a href="templates/quiz-template.xls" download>Template Excel</a>
+        <div class="export-bar">
+            <select id="export-format">
+                <option value="json">JSON</option>
+                <option value="csv">CSV</option>
+                <option value="excel">Excel</option>
+            </select>
+            <button class="btn-secondary small" onclick="exportQuizzes(false)">Exporter sélection</button>
+            <button class="btn-secondary small" onclick="exportQuizzes(true)">Exporter tout</button>
+        </div>
+        <p>Templates :
+            <a href="templates/quiz-template.json" download>JSON</a> |
+            <a href="templates/quiz-template.csv" download>CSV</a> |
+            <a href="templates/quiz-template.xls" download>Excel</a>
         </p>
     </div>
 
@@ -613,6 +619,7 @@ function showAdminDashboard(): void {
             <table class="quizzes-table">
                 <thead>
                     <tr>
+                        <th class="select-col"><input type="checkbox" onclick="toggleSelectAll(this)"></th>
                         <th>Titre</th>
                         <th>Code</th>
                         <th>Statut</th>
@@ -624,6 +631,7 @@ function showAdminDashboard(): void {
                 <tbody>
                 <?php foreach ($quizzes as $qz): $opts = getQuizOptions((int)$qz['id']); ?>
                     <tr>
+                        <td class="select-col"><input type="checkbox" class="quiz-select" value="<?= (int)$qz['id'] ?>"></td>
                         <td><?= htmlspecialchars($qz['title']) ?></td>
                         <td><span class="badge"><?= htmlspecialchars($qz['code']) ?></span></td>
                         <td>
@@ -646,7 +654,7 @@ function showAdminDashboard(): void {
                             <a class="btn-primary small" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=quiz&code=<?= urlencode($qz['code']) ?>">Voir</a>
                             <a class="btn-warning small" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=edit-quiz&id=<?= (int)$qz['id'] ?>">Modifier</a>
                             <a class="btn-info small" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=quiz-results&code=<?= urlencode($qz['code']) ?>">Résultats</a>
-                            <button class="btn-danger small" onclick="deleteQuiz(<?= (int)$qz['id'] ?>)">Supprimer</button>
+                            <button class="btn-danger small" onclick="deleteQuiz(<?= (int)$qz['id'] ?>, this)">Supprimer</button>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -656,26 +664,43 @@ function showAdminDashboard(): void {
     <?php endif; ?>
 </div>
 <script>
+const baseUrl = '<?= htmlspecialchars(getBaseUrl()) ?>';
 function changeStatus(sel){
     const id = sel.dataset.quizId;
     const val = sel.value;
-    fetch('<?= htmlspecialchars(getBaseUrl()) ?>', {
+    fetch(baseUrl, {
         method: 'POST',
         headers: {'Content-Type':'application/x-www-form-urlencoded'},
-        body: 'ajax_action=change_quiz_status&quiz_id='+encodeURIComponent(id)+'&new_status='+encodeURIComponent(val)
+        body: 'ajax_action=change_quiz_status&quiz_id='+encodeURIComponent(id)+'&new_status='+encodeURIComponent(val),
+        credentials:'same-origin'
     }).then(r=>r.json()).then(j=>{
         if(!j.success){ alert('Erreur mise à jour statut'); location.reload(); }
     }).catch(()=>{ alert('Erreur réseau'); location.reload(); });
 }
-function deleteQuiz(id){
+function deleteQuiz(id, btn){
     if(!confirm('Supprimer définitivement ce quiz et toutes ses données (questions, réponses, résultats) ?')) return;
-    fetch('<?= htmlspecialchars(getBaseUrl()) ?>', {
+    btn.disabled = true;
+    fetch(baseUrl, {
         method: 'POST',
         headers: {'Content-Type':'application/x-www-form-urlencoded'},
+        credentials:'same-origin',
         body: 'ajax_action=delete_quiz&quiz_id='+encodeURIComponent(id)
     }).then(r=>r.json()).then(j=>{
-        if(j.success){ location.reload(); } else { alert('Suppression impossible'); }
-    }).catch(()=>alert('Erreur réseau'));
+        if(j.success){ location.reload(); } else { alert('Suppression impossible'); btn.disabled=false; }
+    }).catch(()=>{ alert('Erreur réseau'); btn.disabled=false; });
+}
+function exportQuizzes(all){
+    const format = document.getElementById('export-format').value;
+    let url = baseUrl+'?page=export-quizzes&format='+encodeURIComponent(format);
+    if(!all){
+        const ids = Array.from(document.querySelectorAll('.quiz-select:checked')).map(cb=>cb.value);
+        if(ids.length===0){ alert('Sélectionnez au moins un quiz.'); return; }
+        url += '&ids='+ids.join(',');
+    }
+    window.location.href = url;
+}
+function toggleSelectAll(cb){
+    document.querySelectorAll('.quiz-select').forEach(c=>{ c.checked = cb.checked; });
 }
 </script>
 </body>
@@ -1051,8 +1076,16 @@ function handleExportQuizzes(string $format): void {
     }
     global $pdo;
     $userId = $_SESSION['user_id'] ?? 0;
-    $stmt = $pdo->prepare("SELECT * FROM quizzes WHERE user_id = ?");
-    $stmt->execute([$userId]);
+    $idsParam = $_GET['ids'] ?? '';
+    $ids = array_filter(array_map('intval', explode(',', $idsParam)));
+    if ($ids) {
+        $in  = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $pdo->prepare("SELECT * FROM quizzes WHERE user_id = ? AND id IN ($in)");
+        $stmt->execute(array_merge([$userId], $ids));
+    } else {
+        $stmt = $pdo->prepare("SELECT * FROM quizzes WHERE user_id = ?");
+        $stmt->execute([$userId]);
+    }
     $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $data = [];
     foreach ($quizzes as $q) {

@@ -71,6 +71,10 @@ h3{margin:8px 0;color:#374151}
   background:var(--primary);
   color:#fff;
 }
+.quizzes-table tbody tr:nth-child(even){background:#f9fafb}
+.select-col{text-align:center}
+.export-bar{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
+.export-bar select{padding:6px;border:2px solid #e5e7eb;border-radius:8px}
 
 .form{display:block}
 .form-group{margin-bottom:12px}
