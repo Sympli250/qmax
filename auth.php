@@ -82,3 +82,75 @@ function getAllUsers(): array {
         return [];
     }
 }
+
+/**
+ * Permissions
+ */
+function getAllPermissions(): array {
+    global $pdo;
+    try {
+        $stmt = $pdo->query("SELECT id, name FROM permissions ORDER BY name");
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        error_log('getAllPermissions: ' . $e->getMessage());
+        return [];
+    }
+}
+
+function createPermission(string $name): bool {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("INSERT INTO permissions (name) VALUES (?)");
+        return $stmt->execute([trim($name)]);
+    } catch (Throwable $e) {
+        error_log('createPermission: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function getUserPermissions(int $user_id): array {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("SELECT p.id, p.name FROM user_permissions up JOIN permissions p ON p.id = up.permission_id WHERE up.user_id = ? ORDER BY p.name");
+        $stmt->execute([$user_id]);
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        error_log('getUserPermissions: ' . $e->getMessage());
+        return [];
+    }
+}
+
+function assignPermissionToUser(int $user_id, int $permission_id): bool {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("INSERT OR IGNORE INTO user_permissions (user_id, permission_id) VALUES (?, ?)");
+        return $stmt->execute([$user_id, $permission_id]);
+    } catch (Throwable $e) {
+        error_log('assignPermissionToUser: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function revokePermissionFromUser(int $user_id, int $permission_id): bool {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("DELETE FROM user_permissions WHERE user_id = ? AND permission_id = ?");
+        return $stmt->execute([$user_id, $permission_id]);
+    } catch (Throwable $e) {
+        error_log('revokePermissionFromUser: ' . $e->getMessage());
+        return false;
+    }
+}
+
+function userHasPermission(string $permission): bool {
+    global $pdo;
+    if (!isLoggedIn()) return false;
+    try {
+        $stmt = $pdo->prepare("SELECT 1 FROM user_permissions up JOIN permissions p ON p.id = up.permission_id WHERE up.user_id = ? AND p.name = ? LIMIT 1");
+        $stmt->execute([$_SESSION['user_id'], $permission]);
+        return (bool)$stmt->fetchColumn();
+    } catch (Throwable $e) {
+        error_log('userHasPermission: ' . $e->getMessage());
+        return false;
+    }
+}

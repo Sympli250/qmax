@@ -25,8 +25,8 @@ try {
             insertSampleData($pdo);
         } else {
             if (!tableExists($pdo, 'quiz_options')) {
-                $pdo->exec("
-                    CREATE TABLE quiz_options (
+                $pdo->exec(
+                    "CREATE TABLE quiz_options (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         quiz_id INTEGER NOT NULL,
                         randomize_questions INTEGER NOT NULL DEFAULT 0,
@@ -35,8 +35,25 @@ try {
                         FOREIGN KEY (quiz_id) REFERENCES quizzes(id) ON DELETE CASCADE,
                         UNIQUE(quiz_id)
                     );
-                    CREATE INDEX IF NOT EXISTS idx_quiz_options_quiz_id ON quiz_options(quiz_id);
-                ");
+                    CREATE INDEX IF NOT EXISTS idx_quiz_options_quiz_id ON quiz_options(quiz_id);"
+                );
+            }
+            if (!tableExists($pdo, 'app_config')) {
+                $pdo->exec("CREATE TABLE app_config (key TEXT PRIMARY KEY, value TEXT)");
+            }
+            if (!tableExists($pdo, 'permissions')) {
+                $pdo->exec("CREATE TABLE permissions (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE)");
+            }
+            if (!tableExists($pdo, 'user_permissions')) {
+                $pdo->exec(
+                    "CREATE TABLE user_permissions (
+                        user_id INTEGER NOT NULL,
+                        permission_id INTEGER NOT NULL,
+                        PRIMARY KEY (user_id, permission_id),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                        FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+                    );"
+                );
             }
         }
     }
@@ -124,21 +141,39 @@ function createDatabase(PDO $pdo): void {
     );
     CREATE INDEX idx_participants_quiz_id ON participants(quiz_id);
 
-    CREATE TABLE participant_progress (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        participant_id INTEGER NOT NULL,
-        question_id INTEGER NOT NULL,
-        chosen_answer_id INTEGER NOT NULL,
-        answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (participant_id) REFERENCES participants(id) ON DELETE CASCADE,
-        FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
-        FOREIGN KEY (chosen_answer_id) REFERENCES answers(id) ON DELETE CASCADE,
-        UNIQUE(participant_id, question_id)
-    );
-    CREATE INDEX idx_progress_participant_id ON participant_progress(participant_id);
-    ";
-    $pdo->exec($sql);
-}
+      CREATE TABLE participant_progress (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          participant_id INTEGER NOT NULL,
+          question_id INTEGER NOT NULL,
+          chosen_answer_id INTEGER NOT NULL,
+          answered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (participant_id) REFERENCES participants(id) ON DELETE CASCADE,
+          FOREIGN KEY (question_id) REFERENCES questions(id) ON DELETE CASCADE,
+          FOREIGN KEY (chosen_answer_id) REFERENCES answers(id) ON DELETE CASCADE,
+          UNIQUE(participant_id, question_id)
+      );
+      CREATE INDEX idx_progress_participant_id ON participant_progress(participant_id);
+
+      CREATE TABLE app_config (
+          key TEXT PRIMARY KEY,
+          value TEXT
+      );
+
+      CREATE TABLE permissions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE
+      );
+
+      CREATE TABLE user_permissions (
+          user_id INTEGER NOT NULL,
+          permission_id INTEGER NOT NULL,
+          PRIMARY KEY (user_id, permission_id),
+          FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+          FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+      );
+      ";
+      $pdo->exec($sql);
+  }
 
 function insertSampleData(PDO $pdo): void {
     $hash = password_hash('admin123', PASSWORD_DEFAULT);

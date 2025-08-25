@@ -84,3 +84,21 @@ CREATE TABLE participant_progress (
     UNIQUE(participant_id, question_id)
 );
 CREATE INDEX idx_progress_participant_id ON participant_progress(participant_id);
+
+CREATE TABLE app_config (
+    key TEXT PRIMARY KEY,
+    value TEXT
+);
+
+CREATE TABLE permissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE user_permissions (
+    user_id INTEGER NOT NULL,
+    permission_id INTEGER NOT NULL,
+    PRIMARY KEY (user_id, permission_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    FOREIGN KEY (permission_id) REFERENCES permissions(id) ON DELETE CASCADE
+);
