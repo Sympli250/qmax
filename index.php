@@ -65,6 +65,10 @@ switch ($page) {
         showAdminDashboard();
         break;
 
+    case 'admin-users':
+        showUserManagement();
+        break;
+
     case 'create-quiz':
         showCreateQuiz();
         break;
@@ -410,7 +414,13 @@ function showAdminDashboard(): void {
         </div>
     </div>
 
-    <p class="center"><a class="btn-success" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=create-quiz">Créer un nouveau quiz</a> <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=logout">Se déconnecter</a></p>
+    <p class="center">
+        <a class="btn-success" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=create-quiz">Créer un nouveau quiz</a>
+        <?php if (isSuperAdmin()): ?>
+            <a class="btn-info" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-users">Gestion utilisateurs</a>
+        <?php endif; ?>
+        <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=logout">Se déconnecter</a>
+    </p>
 
     <h2>Mes quiz</h2>
     <?php if (!$quizzes): ?>
@@ -488,6 +498,95 @@ function deleteQuiz(id){
     }).catch(()=>alert('Erreur réseau'));
 }
 </script>
+</body>
+</html>
+<?php }
+
+function showUserManagement(): void {
+    if (!isLoggedIn() || !isSuperAdmin()) {
+        header('Location: ' . getBaseUrl() . '?page=admin');
+        exit;
+    }
+    $msg = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+        $action = $_POST['action'] ?? '';
+        if ($action === 'create') {
+            $username = trim($_POST['username'] ?? '');
+            $email = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $role = $_POST['role'] ?? 'admin';
+            if ($username !== '' && $email !== '' && $password !== '') {
+                $msg = createUser($username, $email, $password, $role) ? 'Utilisateur créé' : 'Erreur création';
+            } else {
+                $msg = 'Champs requis manquants';
+            }
+        } elseif ($action === 'update_role') {
+            $uid = (int)($_POST['user_id'] ?? 0);
+            $role = $_POST['role'] ?? 'admin';
+            if ($uid > 0) {
+                $msg = updateUserRole($uid, $role) ? 'Rôle mis à jour' : 'Erreur mise à jour';
+            }
+        }
+    }
+    $users = getAllUsers();
+    ?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gestion utilisateurs - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Gestion des utilisateurs</h1>
+    <p><a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-dashboard">Retour</a></p>
+    <?php if ($msg): ?><div class="panel center"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+    <h2>Ajouter un utilisateur</h2>
+    <form method="post" class="form">
+        <input type="hidden" name="action" value="create">
+        <div class="form-group"><label>Nom d'utilisateur</label><input type="text" name="username" required></div>
+        <div class="form-group"><label>Email</label><input type="email" name="email" required></div>
+        <div class="form-group"><label>Mot de passe</label><input type="password" name="password" required></div>
+        <div class="form-group"><label>Rôle</label>
+            <select name="role">
+                <option value="admin">Admin</option>
+                <option value="superadmin">Super Admin</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-success">Créer</button>
+    </form>
+    <h2>Utilisateurs existants</h2>
+    <div class="table-wrap">
+        <table class="users-table">
+            <thead>
+                <tr>
+                    <th>Nom</th><th>Email</th><th>Rôle</th><th>Créé le</th>
+                </tr>
+            </thead>
+            <tbody>
+            <?php foreach ($users as $u): ?>
+                <tr>
+                    <td><?= htmlspecialchars($u['username']) ?></td>
+                    <td><?= htmlspecialchars($u['email']) ?></td>
+                    <td>
+                        <form method="post">
+                            <input type="hidden" name="action" value="update_role">
+                            <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                            <select name="role" onchange="this.form.submit()">
+                                <option value="admin" <?= $u['role']==='admin'?'selected':'' ?>>Admin</option>
+                                <option value="superadmin" <?= $u['role']==='superadmin'?'selected':'' ?>>Super Admin</option>
+                            </select>
+                        </form>
+                    </td>
+                    <td><?= htmlspecialchars(date('d/m/Y H:i', strtotime($u['created_at']))) ?></td>
+                </tr>
+            <?php endforeach; ?>
+            </tbody>
+        </table>
+    </div>
+</div>
 </body>
 </html>
 <?php }

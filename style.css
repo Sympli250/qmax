@@ -56,17 +56,18 @@ h3{margin:8px 0;color:#374151}
 }
 .table-wrap{overflow:auto;border:1px solid #e5e7eb;border-radius:12px;background:#fff}
 
-.quizzes-table,.results-table{
+.quizzes-table,.results-table,.users-table{
   width:100%;
   border-collapse:collapse;
 }
 .quizzes-table th,.quizzes-table td,
-.results-table th,.results-table td{
+.results-table th,.results-table td,
+.users-table th,.users-table td{
   padding:12px;
   border-bottom:1px solid #e5e7eb;
   text-align:left;
 }
-.quizzes-table thead th,.results-table thead th{
+.quizzes-table thead th,.results-table thead th,.users-table thead th{
   background:var(--primary);
   color:#fff;
 }
