@@ -207,7 +207,7 @@ function showHomePage(): void { ?>
             <!-- Testimonials -->
             <div class="modern-card mt-32">
                 <div class="card-body">
-                    <h2 style="color: var(--primary); margin-bottom: 16px; text-align: center;">Ils parlent de nous</h2>
+                    <h2 class="section-title-center">Ils parlent de nous</h2>
                     <div class="testimonials-grid">
                         <div class="testimonial">
                             <p class="testimonial-text">« Quiz Master a transformé nos formations ! »</p>
