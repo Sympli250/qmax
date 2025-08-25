@@ -950,9 +950,11 @@ function showEditQuiz(int $quiz_id): void {
                                     <input type="radio" name="questions[<?= (int)$i ?>][correct_answer]" value="<?= (int)$ai ?>" <?= $ans['is_correct']?'checked':''; ?> required>
                                     <input type="text" name="questions[<?= (int)$i ?>][answers][<?= (int)$ai ?>]" value="<?= htmlspecialchars($ans['text']) ?>" required>
                                     <input type="hidden" name="questions[<?= (int)$i ?>][answer_ids][<?= (int)$ai ?>]" value="<?= (int)$ans['id'] ?>">
+                                    <button type="button" class="btn-danger outline small" onclick="removeAnswer(this)">X</button>
                                 </div>
                             <?php endforeach; ?>
                         </div>
+                        <button type="button" class="btn-secondary small" onclick="addAnswer(this)">Ajouter une réponse</button>
                     </div>
                 </div>
             <?php endforeach; ?>
