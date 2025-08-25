@@ -1,0 +1,12 @@
+{
+  "title": "Titre du quiz",
+  "description": "Description du quiz",
+  "questions": [
+    {
+      "text": "Question 1",
+      "correct_answer": 0,
+      "answers": ["Réponse A", "Réponse B", "Réponse C", "Réponse D"],
+      "comment": ""
+    }
+  ]
+}
