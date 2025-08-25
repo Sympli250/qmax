@@ -78,6 +78,15 @@ switch ($page) {
         showEditQuiz($quiz_id);
         break;
 
+    case 'import-quiz':
+        showImportQuiz();
+        break;
+
+    case 'export-quizzes':
+        $format = $_GET['format'] ?? 'json';
+        handleExportQuizzes($format);
+        break;
+
     case 'quiz':
         if ($code !== '') {
             showQuizPage($code);
@@ -422,6 +431,21 @@ function showAdminDashboard(): void {
         <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=logout">Se déconnecter</a>
     </p>
 
+    <h2>Import / Export</h2>
+    <div class="panel center">
+        <p>
+            <a class="btn-info" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=import-quiz">Importer un quiz</a>
+            <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=export-quizzes&format=json">Exporter (JSON)</a>
+            <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=export-quizzes&format=csv">Exporter (CSV)</a>
+            <a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=export-quizzes&format=excel">Exporter (Excel)</a>
+        </p>
+        <p>
+            <a href="templates/quiz-template.json" download>Template JSON</a> |
+            <a href="templates/quiz-template.csv" download>Template CSV</a> |
+            <a href="templates/quiz-template.xls" download>Template Excel</a>
+        </p>
+    </div>
+
     <h2>Mes quiz</h2>
     <?php if (!$quizzes): ?>
         <div class="panel center">
@@ -761,6 +785,187 @@ function showEditQuiz(int $quiz_id): void {
 </body>
 </html>
 <?php }
+
+function showImportQuiz(): void {
+    if (!isLoggedIn()) {
+        header('Location: ' . getBaseUrl() . '?page=admin');
+        exit;
+    }
+    $success = '';
+    $error = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['quiz_file'])) {
+        $format = $_POST['format'] ?? 'json';
+        $tmp = $_FILES['quiz_file']['tmp_name'] ?? '';
+        $data = null;
+        if ($format === 'json') {
+            $data = json_decode(@file_get_contents($tmp), true);
+        } elseif ($format === 'csv') {
+            if (($h = @fopen($tmp, 'r')) !== false) {
+                fgetcsv($h);
+                $title = '';$desc='';$questions=[];
+                while (($r = fgetcsv($h)) !== false) {
+                    if ($title==='') { $title=$r[0]??''; $desc=$r[1]??''; }
+                    $questions[] = [
+                        'text' => $r[2] ?? '',
+                        'correct_answer' => (int)($r[3] ?? 0),
+                        'answers' => array_slice($r,4,4),
+                        'comment' => $r[8] ?? ''
+                    ];
+                }
+                fclose($h);
+                $data = ['title'=>$title,'description'=>$desc,'questions'=>$questions];
+            }
+        } elseif ($format === 'excel') {
+            $xml = @simplexml_load_file($tmp);
+            if ($xml) {
+                $rows=[];
+                foreach ($xml->Worksheet->Table->Row as $row) {
+                    $cells=[];
+                    foreach ($row->Cell as $c) { $cells[] = (string)$c->Data; }
+                    $rows[]=$cells;
+                }
+                array_shift($rows);
+                $title='';$desc='';$questions=[];
+                foreach ($rows as $r) {
+                    if ($title==='') { $title=$r[0]??''; $desc=$r[1]??''; }
+                    $questions[] = [
+                        'text' => $r[2] ?? '',
+                        'correct_answer' => (int)($r[3] ?? 0),
+                        'answers' => array_slice($r,4,4),
+                        'comment' => $r[8] ?? ''
+                    ];
+                }
+                $data = ['title'=>$title,'description'=>$desc,'questions'=>$questions];
+            }
+        }
+        if (is_array($data) && !empty($data['title'])) {
+            $id = createQuizFromForm($data);
+            if ($id) {
+                $success = 'Quiz importé avec succès.';
+            } else {
+                $error = 'Import échoué.';
+            }
+        } else {
+            $error = 'Fichier invalide.';
+        }
+    } ?>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Importer un quiz - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>Importer un quiz</h1>
+    <p class="center"><a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-dashboard">Retour</a></p>
+    <?php if ($success): ?><div class="alert success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
+    <?php if ($error): ?><div class="alert error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
+    <form method="post" enctype="multipart/form-data" class="form">
+        <div class="form-group">
+            <label>Format</label>
+            <select name="format" required>
+                <option value="json">JSON</option>
+                <option value="csv">CSV</option>
+                <option value="excel">Excel (XLS)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Fichier</label>
+            <input type="file" name="quiz_file" required>
+        </div>
+        <button type="submit" class="btn-primary">Importer</button>
+    </form>
+    <p class="mt-16">Modèles :
+        <a href="templates/quiz-template.json" download>JSON</a> |
+        <a href="templates/quiz-template.csv" download>CSV</a> |
+        <a href="templates/quiz-template.xls" download>Excel</a>
+    </p>
+</div>
+</body>
+</html>
+<?php }
+
+function handleExportQuizzes(string $format): void {
+    if (!isLoggedIn()) {
+        header('Location: ' . getBaseUrl() . '?page=admin');
+        exit;
+    }
+    global $pdo;
+    $userId = $_SESSION['user_id'] ?? 0;
+    $stmt = $pdo->prepare("SELECT * FROM quizzes WHERE user_id = ?");
+    $stmt->execute([$userId]);
+    $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $data = [];
+    foreach ($quizzes as $q) {
+        $questions = getQuizQuestionsForEdit((int)$q['id']);
+        $qs = [];
+        foreach ($questions as $qu) {
+            $answers = array_map(fn($a) => $a['text'], $qu['answers']);
+            $correct = 0;
+            foreach ($qu['answers'] as $idx => $ans) {
+                if ($ans['is_correct']) { $correct = $idx; break; }
+            }
+            $qs[] = [
+                'text' => $qu['text'],
+                'comment' => $qu['comment'],
+                'answers' => $answers,
+                'correct_answer' => $correct
+            ];
+        }
+        $data[] = [
+            'title' => $q['title'],
+            'description' => $q['description'],
+            'questions' => $qs
+        ];
+    }
+    if ($format === 'csv') {
+        header('Content-Type: text/csv; charset=utf-8');
+        header('Content-Disposition: attachment; filename="quizzes.csv"');
+        $out = fopen('php://output','w');
+        fputcsv($out, ['title','description','question','correct_answer','answer1','answer2','answer3','answer4','comment']);
+        foreach ($data as $quiz) {
+            foreach ($quiz['questions'] as $q) {
+                $row = [$quiz['title'],$quiz['description'],$q['text'],$q['correct_answer']];
+                for ($i=0;$i<4;$i++) $row[] = $q['answers'][$i] ?? '';
+                $row[] = $q['comment'];
+                fputcsv($out, $row);
+            }
+        }
+        fclose($out);
+    } elseif ($format === 'excel') {
+        header('Content-Type: application/vnd.ms-excel; charset=utf-8');
+        header('Content-Disposition: attachment; filename="quizzes.xls"');
+        echo '<?xml version="1.0"?>';
+        echo '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Worksheet ss:Name="Quiz"><Table>';
+        echo '<Row>';
+        foreach (["title","description","question","correct_answer","answer1","answer2","answer3","answer4","comment"] as $h) {
+            echo '<Cell><Data ss:Type="String">'.htmlspecialchars($h).'</Data></Cell>';
+        }
+        echo '</Row>';
+        foreach ($data as $quiz) {
+            foreach ($quiz['questions'] as $q) {
+                echo '<Row>';
+                $row = [$quiz['title'],$quiz['description'],$q['text'],$q['correct_answer']];
+                for ($i=0;$i<4;$i++) $row[] = $q['answers'][$i] ?? '';
+                $row[] = $q['comment'];
+                foreach ($row as $cell) {
+                    $type = is_numeric($cell) ? 'Number' : 'String';
+                    echo '<Cell><Data ss:Type="'.$type.'">'.htmlspecialchars((string)$cell).'</Data></Cell>';
+                }
+                echo '</Row>';
+            }
+        }
+        echo '</Table></Worksheet></Workbook>';
+    } else {
+        header('Content-Type: application/json; charset=utf-8');
+        header('Content-Disposition: attachment; filename="quizzes.json"');
+        echo json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 
 function showQuizPage(string $quiz_code): void {
     $quiz = getQuizByCode($quiz_code);

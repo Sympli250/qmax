@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Worksheet ss:Name="Quiz">
+  <Table>
+   <Row>
+    <Cell><Data ss:Type="String">title</Data></Cell>
+    <Cell><Data ss:Type="String">description</Data></Cell>
+    <Cell><Data ss:Type="String">question</Data></Cell>
+    <Cell><Data ss:Type="Number">correct_answer</Data></Cell>
+    <Cell><Data ss:Type="String">answer1</Data></Cell>
+    <Cell><Data ss:Type="String">answer2</Data></Cell>
+    <Cell><Data ss:Type="String">answer3</Data></Cell>
+    <Cell><Data ss:Type="String">answer4</Data></Cell>
+    <Cell><Data ss:Type="String">comment</Data></Cell>
+   </Row>
+  </Table>
+ </Worksheet>
+</Workbook>
