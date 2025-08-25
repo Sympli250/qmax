@@ -47,6 +47,7 @@ h3{margin:8px 0;color:#374151}
   margin:4px 0;
 }
 .badge.green{background:var(--success)}
+.badge.info{background:var(--info)}
 
 .panel{
   background:#fff;
@@ -149,6 +150,8 @@ h3{margin:8px 0;color:#374151}
 .review-item{border-top:1px solid #e5e7eb;padding:12px 0}
 .review-item .your-answer{color:var(--danger)}
 .review-item .correct-answer{color:var(--success)}
+
+.success-score{margin-top:8px;font-weight:600;color:var(--success)}
 
 .answers-grid{
   display:grid;
