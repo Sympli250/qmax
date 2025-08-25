@@ -14,6 +14,7 @@ define('APP_VERSION', '0.3');
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/theme.php';
 
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
@@ -316,7 +317,7 @@ function showHomePage(): void { ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quiz App v<?= htmlspecialchars(APP_VERSION) ?> - Accueil</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -364,7 +365,7 @@ function showAdminLogin(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Administration - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container narrow">
@@ -410,7 +411,7 @@ function showAppConfig(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Configuration - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -479,7 +480,7 @@ function showPermissionManagement(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Permissions - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -552,7 +553,7 @@ function showAdminDashboard(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -741,7 +742,7 @@ function showUserManagement(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestion utilisateurs - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -818,7 +819,7 @@ function showCreateQuiz(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Créer un quiz - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -887,7 +888,7 @@ function showEditQuiz(int $quiz_id): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Modifier le quiz - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -1038,7 +1039,7 @@ function showImportQuiz(): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Importer un quiz - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -1167,7 +1168,7 @@ function showQuizPage(string $quiz_code): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title><?= htmlspecialchars($quiz['title']) ?> - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -1233,7 +1234,7 @@ function showQuizResults(string $code): void {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Résultats - <?= htmlspecialchars($quiz['title']) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container">
@@ -1298,7 +1299,7 @@ function showNotFoundPage(string $message = 'Page non trouvée'): void { ?>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Erreur - Quiz App v<?= htmlspecialchars(APP_VERSION) ?></title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="<?= htmlspecialchars(getThemeStylesheetUrl()) ?>">
 </head>
 <body>
 <div class="container narrow center">
