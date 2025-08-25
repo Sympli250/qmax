@@ -204,6 +204,26 @@ function showHomePage(): void { ?>
                     <p class="text-muted mt-16">Interface élégante et responsive sur tous les appareils</p>
                 </div>
             </div>
+            <!-- Testimonials -->
+            <div class="modern-card mt-32">
+                <div class="card-body">
+                    <h2 style="color: var(--primary); margin-bottom: 16px; text-align: center;">Ils parlent de nous</h2>
+                    <div class="testimonials-grid">
+                        <div class="testimonial">
+                            <p class="testimonial-text">« Quiz Master a transformé nos formations ! »</p>
+                            <div class="testimonial-author">— Marie, formatrice</div>
+                        </div>
+                        <div class="testimonial">
+                            <p class="testimonial-text">« Interface claire et intuitive. »</p>
+                            <div class="testimonial-author">— Jean, professeur</div>
+                        </div>
+                        <div class="testimonial">
+                            <p class="testimonial-text">« Les participants adorent. »</p>
+                            <div class="testimonial-author">— Lucie, coach</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </main>
     </div>
 
