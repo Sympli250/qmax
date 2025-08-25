@@ -1123,15 +1123,34 @@ function updateQuestion(int $question_id, array $q): bool {
         $stmt = $pdo->prepare("UPDATE questions SET text = ?, comment = ? WHERE id = ?");
         $stmt->execute([trim($q['text'] ?? ''), trim($q['comment'] ?? ''), $question_id]);
 
-        if (!empty($q['answers']) && is_array($q['answers']) && !empty($q['answer_ids']) && is_array($q['answer_ids'])) {
+        $processedIds = [];
+        if (!empty($q['answers']) && is_array($q['answers'])) {
             foreach ($q['answers'] as $ai => $aText) {
-                if (!isset($q['answer_ids'][$ai])) continue;
-                $aid = (int)$q['answer_ids'][$ai];
                 $is_correct = ((string)$ai === (string)($q['correct_answer'] ?? '')) ? 1 : 0;
-                $u = $pdo->prepare("UPDATE answers SET text = ?, is_correct = ? WHERE id = ?");
-                $u->execute([trim((string)$aText), $is_correct, $aid]);
+                if (!empty($q['answer_ids'][$ai])) {
+                    $aid = (int)$q['answer_ids'][$ai];
+                    $u = $pdo->prepare("UPDATE answers SET text = ?, is_correct = ? WHERE id = ?");
+                    $u->execute([trim((string)$aText), $is_correct, $aid]);
+                    $processedIds[] = $aid;
+                } else {
+                    $ins = $pdo->prepare("INSERT INTO answers (question_id, text, is_correct) VALUES (?, ?, ?)");
+                    $ins->execute([$question_id, trim((string)$aText), $is_correct]);
+                    $processedIds[] = (int)$pdo->lastInsertId();
+                }
             }
         }
+
+        // supprimer les réponses retirées
+        $existing = $pdo->prepare("SELECT id FROM answers WHERE question_id = ?");
+        $existing->execute([$question_id]);
+        $existingIds = array_map('intval', $existing->fetchAll(PDO::FETCH_COLUMN, 0));
+        $toDelete = array_diff($existingIds, $processedIds);
+        if (!empty($toDelete)) {
+            $placeholders = implode(',', array_fill(0, count($toDelete), '?'));
+            $del = $pdo->prepare("DELETE FROM answers WHERE id IN ($placeholders)");
+            $del->execute($toDelete);
+        }
+
         return true;
     } catch (Throwable $e) {
         error_log('updateQuestion: ' . $e->getMessage());

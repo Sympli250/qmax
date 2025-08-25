@@ -81,6 +81,8 @@ function removeAnswer(btn) {
         node.querySelector('input[type="radio"]').name = `questions[${qIndex}][correct_answer]`;
         node.querySelector('input[type="text"]').name = `questions[${qIndex}][answers][${idx}]`;
         node.querySelector('input[type="text"]').placeholder = `Réponse ${String.fromCharCode(65+idx)}`;
+        const hid = node.querySelector('input[type="hidden"]');
+        if (hid) hid.name = `questions[${qIndex}][answer_ids][${idx}]`;
     });
 }
 
@@ -111,6 +113,8 @@ function renumberQuestions() {
             rd.name = `questions[${idx}][correct_answer]`;
             tx.name = `questions[${idx}][answers][${ai}]`;
             tx.placeholder = `Réponse ${String.fromCharCode(65+ai)}`;
+            const hid = row.querySelector('input[type="hidden"]');
+            if (hid) hid.name = `questions[${idx}][answer_ids][${ai}]`;
         });
     });
 }
