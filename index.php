@@ -1070,6 +1070,30 @@ function showQuizResults(string $code): void {
             </table>
         </div>
     <?php endif; ?>
+
+    <?php
+        $stats = getQuizQuestionStats((int)$quiz['id']);
+        if ($stats):
+    ?>
+        <h3>Détails par question</h3>
+        <div class="table-wrap">
+            <table class="results-table">
+                <thead><tr><th>Question</th><th>Réponses correctes</th><th>Total réponses</th><th>Pourcentage</th></tr></thead>
+                <tbody>
+                <?php foreach ($stats as $s):
+                    $total = (int)$s['total_answers']; $ok = (int)$s['correct_answers'];
+                    $pct = $total>0 ? round($ok*100/$total) : 0; ?>
+                    <tr>
+                        <td><?= htmlspecialchars($s['text']) ?></td>
+                        <td><?= $ok ?></td>
+                        <td><?= $total ?></td>
+                        <td><?= $pct ?>%</td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
     <p class="center mt-16"><a class="btn-secondary" href="<?= htmlspecialchars(getBaseUrl()) ?>?page=admin-dashboard">Retour</a></p>
 </div>
 </body>
@@ -1318,6 +1342,30 @@ function getParticipantScore(int $participant_id) {
     } catch (Throwable $e) {
         error_log('getParticipantScore: ' . $e->getMessage());
         return false;
+    }
+}
+
+function getQuizQuestionStats(int $quiz_id): array {
+    global $pdo;
+    try {
+        $stmt = $pdo->prepare("
+            SELECT
+                q.id,
+                q.text,
+                COUNT(pp.id) AS total_answers,
+                SUM(CASE WHEN a.is_correct = 1 THEN 1 ELSE 0 END) AS correct_answers
+            FROM questions q
+            LEFT JOIN participant_progress pp ON pp.question_id = q.id
+            LEFT JOIN answers a ON a.id = pp.chosen_answer_id
+            WHERE q.quiz_id = ?
+            GROUP BY q.id
+            ORDER BY q.order_index
+        ");
+        $stmt->execute([$quiz_id]);
+        return $stmt->fetchAll();
+    } catch (Throwable $e) {
+        error_log('getQuizQuestionStats: ' . $e->getMessage());
+        return [];
     }
 }
 
