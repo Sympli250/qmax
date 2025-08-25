@@ -142,6 +142,10 @@ h3{margin:8px 0;color:#374151}
 .question-text{margin:12px 0 6px}
 .question-comment{margin:6px 0 12px;color:#6b7280;font-style:italic}
 
+.review-item{border-top:1px solid #e5e7eb;padding:12px 0}
+.review-item .your-answer{color:var(--danger)}
+.review-item .correct-answer{color:var(--success)}
+
 .answers-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));

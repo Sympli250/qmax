@@ -67,7 +67,6 @@ class QuizEngine {
                     <div class="badge green">${this.escape(this.participantName)}</div>
                 </div>
                 <h2 class="question-text">${this.escape(q.text)}</h2>
-                ${q.comment ? `<p class="question-comment">${this.escape(q.comment)}</p>` : ''}
                 <div class="answers-grid">
                     ${q.answers.map((a,i)=>`
                         <button class="answer-btn" data-id="${a.id}">
@@ -113,19 +112,39 @@ class QuizEngine {
             const r = await fetch(`${this.baseUrl}?api=participant-score&participant_id=${encodeURIComponent(this.participantId)}`);
             if (!r.ok) throw new Error(await r.text());
             const s = await r.json();
+
+            const wr = await fetch(`${this.baseUrl}?api=participant-wrong-answers&participant_id=${encodeURIComponent(this.participantId)}`);
+            const wrong = wr.ok ? await wr.json() : [];
+
             const pct = s && s.total_questions > 0 ? Math.round( (s.correct_answers*100) / s.total_questions ) : 0;
             const c = document.getElementById('quiz-container');
             const dur = this.duration(this.startTime, new Date());
-            c.innerHTML = `
-                <div class="panel center">
-                    <h2>Quiz terminé</h2>
-                    <p><strong>${this.escape(this.participantName)}</strong></p>
-                    <div class="score-box">
-                        <div class="big">${s.correct_answers}/${s.total_questions}</div>
-                        <div class="big green">${pct}%</div>
-                        <div>Temps: ${dur}</div>
+
+            const reviewHtml = wrong.length ? `
+                <h3>Révision des erreurs</h3>
+                ${wrong.map(w => `
+                    <div class="review-item">
+                        <p class="question-text">${this.escape(w.question)}</p>
+                        <p class="your-answer">Votre réponse : ${this.escape(w.your_answer)}</p>
+                        <p class="correct-answer">Bonne réponse : ${this.escape(w.correct_answer)}</p>
+                        ${w.comment ? `<p class="question-comment">${this.escape(w.comment)}</p>` : ''}
                     </div>
-                    <p><a class="btn-primary" href="${this.baseUrl}">Retour à l'accueil</a></p>
+                `).join('')}
+            ` : '';
+
+            c.innerHTML = `
+                <div class="panel">
+                    <div class="center">
+                        <h2>Quiz terminé</h2>
+                        <p><strong>${this.escape(this.participantName)}</strong></p>
+                        <div class="score-box">
+                            <div class="big">${s.correct_answers}/${s.total_questions}</div>
+                            <div class="big green">${pct}%</div>
+                            <div>Temps: ${dur}</div>
+                        </div>
+                    </div>
+                    ${reviewHtml}
+                    <p class="center"><a class="btn-primary" href="${this.baseUrl}">Retour à l'accueil</a></p>
                 </div>
             `;
         } catch (e) {
